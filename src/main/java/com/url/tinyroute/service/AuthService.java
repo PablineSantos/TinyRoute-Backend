@@ -3,6 +3,9 @@ package com.url.tinyroute.service;
 import com.url.tinyroute.dto.LoginRequest;
 import com.url.tinyroute.dto.RegisterRequest;
 import com.url.tinyroute.entity.User;
+import com.url.tinyroute.exception.DataConflictException;
+import com.url.tinyroute.exception.InvalidCredentialsException;
+import com.url.tinyroute.exception.ResourceNotFoundException;
 import com.url.tinyroute.repository.UserRepository;
 import com.url.tinyroute.security.JwtService;
 import org.springframework.http.HttpStatus;
@@ -23,9 +26,8 @@ public class AuthService {
     }
 
     public void register(RegisterRequest request) {
-
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email já existe");
+            throw new DataConflictException("Email já existe");
         }
 
         User user = new User();
@@ -38,13 +40,11 @@ public class AuthService {
 
     public String login(LoginRequest request) {
 
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuário não foi encontrado"));
-
+        User user = userRepository.findByEmail(request.getEmail()).orElseThrow(() -> new ResourceNotFoundException("Usuário não foi encontrado"));
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciais inválidas");
+            throw new InvalidCredentialsException("Credenciais inválidas");
         }
 
-        return jwtService.generateToken(user.getEmail());
+        return jwtService.generateToken(user);
     }
 }

@@ -25,6 +25,9 @@ public class ShortUrl {
     private Long clickCount = 0L;
 
     @Column
+    private Long maxClicks;
+
+    @Column
     private LocalDateTime expiresAt;
 
     @Column(nullable = false)
@@ -42,12 +45,26 @@ public class ShortUrl {
         this.active = true;
     }
 
+    public Long getMaxClicks() {
+        return maxClicks;
+    }
+
+    public void setMaxClicks(Long maxClicks) {
+        this.maxClicks = maxClicks;
+    }
+
     public boolean isExpired() {
         return expiresAt != null && LocalDateTime.now().isAfter(expiresAt);
     }
 
+    public boolean hasReachedClickLimit() {
+        return maxClicks != null && clickCount >= maxClicks;
+    }
+
     public boolean isAvailable() {
-        return Boolean.TRUE.equals(active) && !isExpired();
+        return Boolean.TRUE.equals(active)
+                && !isExpired()
+                && !hasReachedClickLimit();
     }
 
     public Long getId() {

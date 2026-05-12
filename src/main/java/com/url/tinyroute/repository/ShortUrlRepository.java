@@ -14,4 +14,6 @@ public interface ShortUrlRepository extends JpaRepository<ShortUrl,Long> {
     boolean existsByShortCode(String shortCode);
 
     List<ShortUrl> findByUserId(Long userId);
+
+    List<ShortUrl> findByUserIdAndShortCodeContainingIgnoreCase(Long userId, String shortCode);
 }

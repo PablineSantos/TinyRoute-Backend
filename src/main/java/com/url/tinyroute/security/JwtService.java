@@ -1,5 +1,6 @@
 package com.url.tinyroute.security;
 
+import com.url.tinyroute.entity.User;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,15 +19,15 @@ public class JwtService {
         return Keys.hmacShaKeyFor(secretKey.getBytes());
     }
 
-   public String generateToken(String email){
-       return Jwts.builder()
-               .setSubject(email)
-               .setIssuedAt(new Date())
-               .setExpiration(new Date(System.currentTimeMillis()+1000*60*60))
-               .signWith(getKey(), SignatureAlgorithm.HS256)
-               .compact();
-   }
-
+    public String generateToken(User user) {
+        return Jwts.builder()
+                .setSubject(user.getEmail())
+                .claim("name", user.getProfileName())
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60))
+                .signWith(getKey(), SignatureAlgorithm.HS256)
+                .compact();
+    }
    public String extractEmail(String token){
        return Jwts.parserBuilder()
                .setSigningKey(getKey())

@@ -4,9 +4,17 @@ import com.url.tinyroute.dto.CreateShortUrlRequest;
 import com.url.tinyroute.dto.ShortUrlResponse;
 import com.url.tinyroute.entity.ShortUrl;
 import com.url.tinyroute.entity.User;
+import com.url.tinyroute.exception.BusinessException;
+import com.url.tinyroute.exception.DataConflictException;
+import com.url.tinyroute.exception.ExpiredUrlException;
+import com.url.tinyroute.exception.ResourceNotFoundException;
 import com.url.tinyroute.repository.ShortUrlRepository;
+import com.url.tinyroute.repository.UserRepository;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.Authentication;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
@@ -18,74 +26,115 @@ import java.util.Random;
 public class ShortUrlService {
 
     private final ShortUrlRepository shortUrlRepository;
+    private final UserRepository userRepository;
+    @Value("${app.base-url:http://localhost:8080/api/urls/r}")
+    private String baseUrl;
 
-    public ShortUrlService(ShortUrlRepository shortUrlRepository) {
+    public ShortUrlService(ShortUrlRepository shortUrlRepository, UserRepository userRepository) {
         this.shortUrlRepository = shortUrlRepository;
+        this.userRepository = userRepository;
     }
 
-    public ShortUrlResponse  createShortUrl(CreateShortUrlRequest createShortUrlRequest, User user) {
-        validateExpirationDate(createShortUrlRequest.getExpiresAt());
+    @Transactional
+    public ShortUrlResponse createShortUrl(CreateShortUrlRequest request, Authentication authentication) {
 
-        String shortCode = resolveShortCode(createShortUrlRequest.getCustomAlias());
+        validateMaxClicks(request.getMaxClicks());
+        User user = extractUser(authentication);
+        validateExpirationDate(request.getExpiresAt());
+
+        if (user == null && (request.getMaxClicks() != null || request.getExpiresAt() != null)) {
+            throw new BusinessException("Você precisa estar logado para usar limites de expiração", HttpStatus.FORBIDDEN);
+        }
+        String shortCode = resolveShortCode(request.getCustomAlias());
 
         ShortUrl shortUrl = new ShortUrl();
-        shortUrl.setOriginalUrl(createShortUrlRequest.getOriginalUrl());
+        shortUrl.setOriginalUrl(request.getOriginalUrl());
         shortUrl.setShortCode(shortCode);
-        shortUrl.setExpiresAt(createShortUrlRequest.getExpiresAt());
+        shortUrl.setExpiresAt(request.getExpiresAt());
+        shortUrl.setMaxClicks(request.getMaxClicks());
         shortUrl.setUser(user);
+
         shortUrlRepository.save(shortUrl);
         return toResponse(shortUrl);
     }
 
-    public List<ShortUrlResponse> listByUser(User user) {
+    @Transactional(readOnly = true)
+    public List<ShortUrlResponse> listByUser(User user,String alias) {
         if (user == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not authenticated");
+            throw new BusinessException("Usuário não autenticado", HttpStatus.UNAUTHORIZED);
         }
-        return shortUrlRepository.findByUserId(user.getId()).stream().map(this::toResponse).toList();
+        List<ShortUrl> urls;
+
+        if (alias != null && !alias.isBlank()) {
+            urls = shortUrlRepository.findByUserIdAndShortCodeContainingIgnoreCase(user.getId(), alias);
+        } else {
+            urls = shortUrlRepository.findByUserId(user.getId());
+        }
+
+        return urls.stream().map(this::toResponse).toList();
     }
 
+    @Transactional(readOnly = true)
     public ShortUrl findById(Long id) {
-        return shortUrlRepository.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Link não encontrado"));
+        return shortUrlRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Link não encontrado"));
     }
 
+    @Transactional(readOnly = true)
     public ShortUrl findByShortCode(String shortCode) {
-        return shortUrlRepository.findByShortCode(shortCode).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Link não encontrado"));
+        return shortUrlRepository.findByShortCode(shortCode).orElseThrow(() -> new ResourceNotFoundException("Link não encontrado"));
     }
 
+    @Transactional
     public String resolveOriginalUrlAndCountClick(String shortCode) {
         ShortUrl shortUrl = findByShortCode(shortCode);
 
         if (!shortUrl.isAvailable()) {
-            throw new ResponseStatusException(HttpStatus.GONE, "Este link não está disponível");
+            throw new ExpiredUrlException("Este link atingiu o limite de cliques ou expirou.");
         }
 
         incrementClickCount(shortUrl);
+
+        if (shortUrl.hasReachedClickLimit()) {
+            shortUrl.setActive(false);
+        }
+
         return shortUrl.getOriginalUrl();
     }
 
-    public void incrementClickCount(ShortUrl shortUrl) {
+    private void incrementClickCount(ShortUrl shortUrl) {
         shortUrl.setClickCount(shortUrl.getClickCount() + 1);
-        shortUrlRepository.save(shortUrl);
     }
 
+    @Transactional
     public void deleteById(Long id, User user) {
 
+        if (user == null) {
+            throw new BusinessException("Usuário não autenticado", HttpStatus.UNAUTHORIZED);
+        }
+
+        User freshUser = userRepository.findById(user.getId())
+                .orElseThrow(() -> new BusinessException("Usuário não encontrado", HttpStatus.UNAUTHORIZED));
         ShortUrl shortUrl = findById(id);
 
-        if (shortUrl.getUser() != null) {
-            if (user == null || !shortUrl.getUser().getId().equals(user.getId())) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You cannot delete this link");
-            }
+        if (shortUrl.getUser() == null ||
+                !shortUrl.getUser().getId().equals(freshUser.getId())) {
+
+            throw new BusinessException("Você não pode deletar este link", HttpStatus.FORBIDDEN);
         }
 
         shortUrlRepository.delete(shortUrl);
     }
-
     private void validateExpirationDate(LocalDateTime expiresAt) {
-        if (expiresAt != null && expiresAt.isBefore(LocalDateTime.now())) {throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A data de expiração não pode ser no passado.");
+        if (expiresAt != null && expiresAt.isBefore(LocalDateTime.now())) {
+            throw new BusinessException("A data de expiração não pode ser no passado.", HttpStatus.BAD_REQUEST);
         }
     }
 
+    private void validateMaxClicks(Long maxClicks) {
+        if (maxClicks != null && maxClicks <= 0) {
+            throw new BusinessException("O limite de cliques deve ser maior que zero.", HttpStatus.BAD_REQUEST);
+        }
+    }
     private String resolveShortCode(String customAlias) {
         if (customAlias != null && !customAlias.isBlank()) {
             String normalizedAlias = customAlias.trim();
@@ -98,7 +147,7 @@ public class ShortUrlService {
 
     private void validateShortCodeAvailability(String shortCode) {
         if (shortUrlRepository.existsByShortCode(shortCode)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Este apelido já esta em uso");
+            throw new DataConflictException("Este apelido já esta em uso");
         }
     }
 
@@ -121,8 +170,15 @@ public class ShortUrlService {
         return generatedCode;
     }
 
+    private User extractUser(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated() || !(authentication.getPrincipal() instanceof User)) {
+            return null;
+        }
+
+        return (User) authentication.getPrincipal();
+    }
+
     private ShortUrlResponse toResponse(ShortUrl shortUrl) {
-        String baseUrl = "http://localhost:8080";
         String shortUrlValue = baseUrl + "/" + shortUrl.getShortCode();
 
         return new ShortUrlResponse(
@@ -133,7 +189,8 @@ public class ShortUrlService {
                 shortUrl.getClickCount(),
                 shortUrl.getCreatedAt(),
                 shortUrl.getExpiresAt(),
-                shortUrl.getActive()
+                shortUrl.getActive(),
+                shortUrl.getMaxClicks()
         );
     }
 }

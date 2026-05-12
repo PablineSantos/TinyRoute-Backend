@@ -12,6 +12,7 @@ public class ShortUrlResponse {
     private LocalDateTime createdAt;
     private LocalDateTime expiresAt;
     private Boolean active;
+    private Long maxClicks;
 
     public ShortUrlResponse() {
     }
@@ -24,7 +25,8 @@ public class ShortUrlResponse {
             Long clickCount,
             LocalDateTime createdAt,
             LocalDateTime expiresAt,
-            Boolean active
+            Boolean active,
+            Long maxClicks
     ) {
         this.id = id;
         this.originalUrl = originalUrl;
@@ -34,6 +36,7 @@ public class ShortUrlResponse {
         this.createdAt = createdAt;
         this.expiresAt = expiresAt;
         this.active = active;
+        this.maxClicks = maxClicks;
     }
 
     public Long getId() {
@@ -67,4 +70,7 @@ public class ShortUrlResponse {
     public Boolean getActive() {
         return active;
     }
+
+    public Long getMaxClicks() {return maxClicks;}
+
 }
