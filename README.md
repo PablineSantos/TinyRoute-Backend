@@ -64,12 +64,30 @@ Para acessar a documentação, rode a aplicação localmente e acesse em seu nav
 Antes de rodar, verifique o arquivo `src/main/resources/application.properties` (ou `.env`). Você precisará configurar as credenciais do banco e a chave secreta do JWT:
 
 ```properties
-spring.datasource.url=jdbc:postgresql://localhost:5432/tinyroute_db
-spring.datasource.username=seu_usuario
-spring.datasource.password=sua_senha
-jwt.secret=SUA_CHAVE_SECRETA_MUITO_SEGURA_AQUI
+spring.application.name=TinyRoute
+server.port=8080
+
+# Segurança e Autenticação
+jwt.secret=MINHA_CHAVE_SUPER_SECRETA_COM_MAIS_DE_32_CARACTERES
 cors.allowed-origins=http://localhost:4200
 
+# Configurações de Redirecionamento
+app.base-url=[http://tiny.route:8080/api/urls/r](http://tiny.route:8080/api/urls/r)
+
+# Configurações do Banco de Dados (PostgreSQL)
+spring.datasource.url=jdbc:postgresql://localhost:5432/Tinyroute_DB
+spring.datasource.username=postgres
+spring.datasource.password=123
+
+# Configurações do Hibernate / JPA
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.format_sql=true
+
+# Encoding
+spring.servlet.encoding.charset=UTF-8
+spring.servlet.encoding.force=true
+```
 
 ### Comandos para Iniciar
 
