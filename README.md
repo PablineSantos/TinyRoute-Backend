@@ -152,4 +152,4 @@ Este projeto foi desenvolvido num contexto de equipe onde a **separação de res
 * **Tratamento Global de Erros:** Exceções de negócio (URL não encontrada, link expirado) são capturadas por um `@ControllerAdvice`, garantindo respostas JSON padronizadas com os códigos HTTP corretos (ex: 404 Not Found, 403 Forbidden).
 * **CORS Configurado:** O arquivo `CorsConfig.java` foi devidamente configurado para permitir a comunicação fluida com o Frontend em Angular (rodando em `http://localhost:4200`), evitando bloqueios de segurança do navegador durante a fase de integração.
 
-### [👉 Projeto FullStack:](https://github.com/PablineSantos/TinyRoute))
+## [👉 Projeto FullStack](https://github.com/PablineSantos/TinyRoute)
