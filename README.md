@@ -23,8 +23,8 @@ Este repositório contém o código-fonte exclusivo da camada de servidor (Serve
 
 A stack tecnológica foi selecionada com base em padrões de mercado para aplicações corporativas escaláveis:
 
-- **Java 17+**: Linguagem principal, utilizando recursos modernos de tipagem e performance.
-- **Spring Boot 3.x**: Framework base para injeção de dependências, roteamento e configuração simplificada.
+- **Java 21+**: Linguagem principal, utilizando recursos modernos de tipagem e performance.
+- **Spring Boot 4.x**: Framework base para injeção de dependências, roteamento e configuração simplificada.
 - **Spring Security & JWT**: Implementação de filtros de segurança e proteção de rotas via tokens *stateless*.
 - **Spring Data JPA / Hibernate**: Mapeamento Objeto-Relacional (ORM) para abstração das consultas ao banco de dados.
 - **Banco de Dados**: PostgreSQL / MySQL *(configurável via `application.properties`)*.
