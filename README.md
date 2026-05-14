@@ -1,5 +1,5 @@
 
-# ⚙️ TinyRoute - API REST (Backend)
+# 🎨 TinyRoute - API REST (Backend)
 
 O **TinyRoute API** é o motor de processamento e persistência de dados da plataforma de encurtamento de URLs. Desenvolvido sob uma arquitetura RESTful robusta, este Backend é responsável por garantir a geração eficiente de links únicos, o redirecionamento de alta performance e a manutenção da integridade das regras de negócio (como expiração de links e controle de cliques).
 
